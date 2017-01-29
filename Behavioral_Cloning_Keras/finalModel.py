@@ -23,7 +23,7 @@ import cv2
 
 def crop_Image(image):
     height, width = image.shape[:2]
-    print (height,width)
+    # print (height,width)
     #Remove a region from top and bottom of the image to remove sky and hood
     upper_limit = int((6.0/7.0)*height)
     lower_limit = int((2.0 / 7.0) * height)
@@ -140,7 +140,7 @@ def batchImageGenerator(X_train,Y_train, batchSize = 64):
         X_trainBatchImages = []
         Y_trainBatchImages = []
 
-        for i in batchSize:
+        for i in range(batchSize):
             index = np.random.randint(0,len(Y_train)-1)
             imPath = X_train[index]
             image=cv2.imread(imPath)
@@ -164,37 +164,45 @@ if __name__ == "__main__":
     reader=pd.read_csv('driving_log.csv')
 
     X_center = reader["center"]
-    Y_center = reader["steering"]
     # Strip extra white space
     X_left = reader["left"].map(str.strip)
-    Y_left = reader["steering"]+0.25
     X_right = reader["right"].map(str.strip)
+
+
+    Y_center = reader["steering"]
+    Y_left = reader["steering"]+0.25
     Y_right = reader["steering"]-0.25
+
+    X_train = np.hstack((X_center,X_left,X_right))
+    Y_train = np.hstack((Y_center,Y_left,Y_right))
+
+    print("X_train ",len(X_train))
+    print("Y_train ",len(Y_train))
 
     # print (X_center[:2])
     # print (X_left[:2])
 
-    batch_size = 256
-    nb_epoch = 10
-    print("Loading images ..... ")
-    No_of_images = 6000
-    X_train,X_train_flipped = load_images_from_folder(X_center[:No_of_images])
-    Y_train = Y_center[:No_of_images]
-    Y_train_flipped = -1.0 * Y_train
-
-    print(Y_train)
-    print (" Break")
-    print(Y_train_flipped)
-
-    X_validation,X_validation_flipped = load_images_from_folder(X_left[:No_of_images])
-    Y_validation = Y_left[:No_of_images]
-    Y_validation_flipped = -1.0 * Y_validation
+    # batch_size = 256
+    # nb_epoch = 10
+    # print("Loading images ..... ")
+    # No_of_images = 6000
+    # X_train,X_train_flipped = load_images_from_folder(X_center[:No_of_images])
+    # Y_train = Y_center[:No_of_images]
+    # Y_train_flipped = -1.0 * Y_train
+    #
+    # print(Y_train)
+    # print (" Break")
+    # print(Y_train_flipped)
+    #
+    # X_validation,X_validation_flipped = load_images_from_folder(X_left[:No_of_images])
+    # Y_validation = Y_left[:No_of_images]
+    # Y_validation_flipped = -1.0 * Y_validation
 
     model = return_model()
 
 
-    model.fit(X_train, Y_train,batch_size=batch_size,nb_epoch=nb_epoch,validation_data=(X_validation, Y_validation),shuffle=True)
-
+    # model.fit(X_train, Y_train,batch_size=batch_size,nb_epoch=nb_epoch,validation_data=(X_validation, Y_validation),shuffle=True)
+    model.fit_generator(batchImageGenerator(X_train,Y_train),samples_per_epoch = 64*400, nb_epoch=2)
     model.save_weights('model.h5')
     with open('model.json', 'w') as outfile:
         outfile.write(model.to_json())
