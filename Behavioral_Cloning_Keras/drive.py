@@ -52,6 +52,12 @@ def telemetry(sid, data):
     imgString = data["image"]
     image = Image.open(BytesIO(base64.b64decode(imgString)))
     image_array = np.asarray(image)
+
+    b,g,r = cv2.split(image_array)           # get b, g, r
+    image_array = cv2.merge([r,g,b])
+    # cv2.imshow('image_orig', image_array)
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
     # print ("Entered Here... Initial shape of image captured")
     # print (image_array.shape)
     image_array = preProcess(image_array)
