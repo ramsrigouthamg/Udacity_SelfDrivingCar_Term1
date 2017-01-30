@@ -27,6 +27,8 @@ def crop_Image(image):
     #Remove a region from top and bottom of the image to remove sky and hood
     upper_limit = int((6.0/7.0)*height)
     lower_limit = int((2.0 / 7.0) * height)
+    # upper_limit = int((7.0/8.0)*height)
+    # lower_limit = int((2.0 / 8.0) * height)
     return image[lower_limit:upper_limit,:]
 
 def load_images_from_folder(Path):
@@ -127,10 +129,21 @@ def return_model():
 
 
 #Input image is a numpy array of an image 
-def preProcess(image):
+def preProcess(image,steeringAngle,flipImage = False):
     image = crop_Image(image)
     image= cv2.resize(image, (200, 66))
-    return image
+    # flipImageTrue = np.random.choice([True,False])
+    # flipImageTrue = False
+    if flipImage:
+        # cv2.imshow('image_original', image)
+        image = cv2.flip(image,1)
+        # print("Previous Steering Angle ",steeringAngle)
+        steeringAngle = -1.0 * steeringAngle
+        # print("Current Steering Angle ", steeringAngle)
+        # cv2.imshow('image_flipped', image)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
+    return image,steeringAngle
 
 
 
@@ -144,8 +157,13 @@ def batchImageGenerator(X_train,Y_train, batchSize = 64):
             index = np.random.randint(0,len(Y_train)-1)
             imPath = X_train[index]
             image=cv2.imread(imPath)
-            image = preProcess(image)
-            steeringAngle = Y_train[index]
+            steeringAngleInitial = Y_train[index]
+            if "left" in imPath or 'right' in imPath:
+                # print (imPath)
+                flipImageChoice = np.random.choice([True, False])
+                image, steeringAngle = preProcess(image, steeringAngleInitial,flipImage=flipImageChoice)
+            else:
+                image,steeringAngle = preProcess(image,steeringAngleInitial)
             X_trainBatchImages.append(image)
             Y_trainBatchImages.append(steeringAngle)
 
@@ -179,6 +197,12 @@ if __name__ == "__main__":
     print("X_train ",len(X_train))
     print("Y_train ",len(Y_train))
 
+    # plt.hist(Y_train)
+    # plt.title("Steering angles Histogram")
+    # plt.xlabel("Steering angle")
+    # plt.ylabel("Frequency")
+    # plt.show()
+
     # print (X_center[:2])
     # print (X_left[:2])
 
@@ -202,7 +226,7 @@ if __name__ == "__main__":
 
 
     # model.fit(X_train, Y_train,batch_size=batch_size,nb_epoch=nb_epoch,validation_data=(X_validation, Y_validation),shuffle=True)
-    model.fit_generator(batchImageGenerator(X_train,Y_train),samples_per_epoch = 64*400, nb_epoch=2)
+    model.fit_generator(batchImageGenerator(X_train,Y_train,batchSize=256),samples_per_epoch = 256*100, nb_epoch=3)
     model.save_weights('model.h5')
     with open('model.json', 'w') as outfile:
         outfile.write(model.to_json())
