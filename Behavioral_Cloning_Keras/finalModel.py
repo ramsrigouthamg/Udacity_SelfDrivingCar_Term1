@@ -9,6 +9,7 @@ import numpy as np
 from keras.preprocessing.image import img_to_array, load_img
 from keras.layers import Convolution2D, ELU, Flatten, Dropout, Dense, Lambda, MaxPooling2D
 from keras.models import Sequential
+from keras.optimizers import Adam
 import cv2
 # print (X_left)
 # print (Y_right)
@@ -21,15 +22,8 @@ import cv2
 # X_right,Y_right = reader[:,2],reader[:,6]
 
 
-def crop_Image(image):
-    height, width = image.shape[:2]
-    # print (height,width)
-    #Remove a region from top and bottom of the image to remove sky and hood
-    upper_limit = int((6.0/7.0)*height)
-    lower_limit = int((2.0 / 7.0) * height)
-    # upper_limit = int((7.0/8.0)*height)
-    # lower_limit = int((2.0 / 8.0) * height)
-    return image[lower_limit:upper_limit,:]
+
+
 
 def load_images_from_folder(Path):
     # output = np.array([img_to_array(load_img(im)) for im in Path])
@@ -103,12 +97,12 @@ def return_model():
 
     # layer 4
     model.add(Dense(1164,init = 'he_normal'))
-    model.add(Dropout(.3))
+    model.add(Dropout(.4))
     model.add(ELU())
 
     # layer 5
     model.add(Dense(100,init = 'he_normal'))
-    model.add(Dropout(.3))
+    model.add(Dropout(.2))
     model.add(ELU())
 
     # layer 6
@@ -122,27 +116,49 @@ def return_model():
     # Finally a single output, since this is a regression problem
     model.add(Dense(1,init = 'he_normal'))
 
-    model.compile(optimizer="adam", loss="mse")
+    adam = Adam(lr=0.0001)
+    model.compile(optimizer=adam, loss="mse")
 
     return model
 
 
 
+def crop_Image(image):
+    height, width = image.shape[:2]
+    # print (height,width)
+    #Remove a region from top and bottom of the image to remove sky and hood
+    upper_limit = int((6.0/7.0)*height)
+    lower_limit = int((2.0 / 7.0) * height)
+    # upper_limit = int((7.0/8.0)*height)
+    # lower_limit = int((2.0 / 8.0) * height)
+    return image[lower_limit:upper_limit,:]
+
+
+def show_image(image):
+    cv2.imshow('image_original', image)
+    cv2.imshow('image_changed', image)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
+def change_brightness(image):
+    image = cv2.cvtColor(image,cv2.COLOR_RGB2HSV)
+    brightness = .25+np.random.uniform()
+    brightness = round(brightness,3)
+    image[:,:,2] = image[:,:,2]*brightness
+    image = cv2.cvtColor(image,cv2.COLOR_HSV2RGB)
+    return image
+
 #Input image is a numpy array of an image 
 def preProcess(image,steeringAngle,flipImage = False):
     image = crop_Image(image)
     image= cv2.resize(image, (200, 66))
-    # flipImageTrue = np.random.choice([True,False])
-    # flipImageTrue = False
+    changeBrightness = np.random.choice([True,False])
+    if changeBrightness:
+        image = change_brightness(image)
     if flipImage:
-        # cv2.imshow('image_original', image)
         image = cv2.flip(image,1)
-        # print("Previous Steering Angle ",steeringAngle)
         steeringAngle = -1.0 * steeringAngle
-        # print("Current Steering Angle ", steeringAngle)
-        # cv2.imshow('image_flipped', image)
-        # cv2.waitKey(0)
-        # cv2.destroyAllWindows()
+
     return image,steeringAngle
 
 
@@ -226,7 +242,7 @@ if __name__ == "__main__":
 
 
     # model.fit(X_train, Y_train,batch_size=batch_size,nb_epoch=nb_epoch,validation_data=(X_validation, Y_validation),shuffle=True)
-    model.fit_generator(batchImageGenerator(X_train,Y_train,batchSize=256),samples_per_epoch = 256*100, nb_epoch=3)
+    model.fit_generator(batchImageGenerator(X_train,Y_train,batchSize=256),samples_per_epoch = 256*150, nb_epoch=3)
     model.save_weights('model.h5')
     with open('model.json', 'w') as outfile:
         outfile.write(model.to_json())
