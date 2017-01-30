@@ -242,7 +242,7 @@ if __name__ == "__main__":
 
 
     # model.fit(X_train, Y_train,batch_size=batch_size,nb_epoch=nb_epoch,validation_data=(X_validation, Y_validation),shuffle=True)
-    model.fit_generator(batchImageGenerator(X_train,Y_train,batchSize=256),samples_per_epoch = 256*150, nb_epoch=3)
+    model.fit_generator(batchImageGenerator(X_train,Y_train,batchSize=256),samples_per_epoch = 256*200, nb_epoch=5)
     model.save_weights('model.h5')
     with open('model.json', 'w') as outfile:
         outfile.write(model.to_json())
