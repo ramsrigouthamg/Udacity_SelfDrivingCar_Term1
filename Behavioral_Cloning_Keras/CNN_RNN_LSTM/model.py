@@ -354,17 +354,16 @@ if __name__ == "__main__":
     print("X_train ",len(X_train))
     print("Y_train ",len(Y_train))
 
-    batchSize = 200
+    batchSize = 80
     timesteps = 10
     volumesPerBatch = int(batchSize/timesteps)
 
     # X,Y = batchImageGenerator(X_train,Y_train,batchSize,timesteps)
     model = buildModel(volumesPerBatch,timesteps,(3,66, 200))
 
-    print ("Everything good")
 
     # model.fit(X_train, Y_train,batch_size=batch_size,nb_epoch=nb_epoch,validation_data=(X_validation, Y_validation),shuffle=True)
-    model.fit_generator(batchImageGenerator(X_train,Y_train,batchSize=200,timesteps = 10 ),samples_per_epoch = 10000, nb_epoch=1)
-    # model.save_weights('model.h5')
-    # with open('model.json', 'w') as outfile:
-    #     outfile.write(model.to_json())
+    model.fit_generator(batchImageGenerator(X_train,Y_train,batchSize=80,timesteps = 10 ),samples_per_epoch = 5000, nb_epoch=1)
+    model.save_weights('model.h5')
+    with open('model.json', 'w') as outfile:
+        outfile.write(model.to_json())
