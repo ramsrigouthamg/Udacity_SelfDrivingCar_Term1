@@ -75,6 +75,7 @@ def telemetry(sid, data):
         for j in range(volumesPerBatch):
             for k in range(timesteps):
                 transformed_image_array[j, k, :, :, :] = image_interChangedDimensions
+        firstFrame = False
     else:
         for j in range(volumesPerBatch):
             for k in range(timesteps):
@@ -87,10 +88,10 @@ def telemetry(sid, data):
                     transformed_image_array[j, k, :, :, :] = transformed_image_array[j+1, 0 , :, :, :]
 
 
-    print ("transformed_image_array ", transformed_image_array.shape)
-    print ("Predicting steering angle ....")
+    # print ("transformed_image_array ", transformed_image_array.shape)
+    # print ("Predicting steering angle ....")
     steering_angle = model.predict(transformed_image_array)
-    print ("steering_angle_shape",steering_angle.shape)
+    # print ("steering_angle_shape",steering_angle.shape)
     steering_angle = steering_angle[volumesPerBatch-1,timesteps-1,0]
     # print("steering_angle estimated", steering_angle)
     # The driving model currently just outputs a constant throttle. Feel free to edit this.

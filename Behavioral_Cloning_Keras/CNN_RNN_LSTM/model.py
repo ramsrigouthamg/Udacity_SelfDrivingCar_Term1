@@ -120,10 +120,10 @@ def buildModel(volumesPerBatch, timesteps, cameraFormat=(3, 66, 200)):
                  return_sequences=True,
                  batch_input_shape=(volumesPerBatch, timesteps, 320),
                  stateful=True))
+  # model.add(LSTM(512,stateful=True))
   model.add(LSTM(512,
                  return_sequences=True,
                  stateful=True))
-
   # Fully connected layer with one output dimension (representing the predicted
   # value).
   model.add(TimeDistributed(Dense(1)))
@@ -346,13 +346,13 @@ if __name__ == "__main__":
     Y_left = reader["steering"]+0.25
     Y_right = reader["steering"]-0.25
 
-    X_train = X_center
-    Y_train = Y_center
+    # X_train = X_center
+    # Y_train = Y_center
     # X_train = np.hstack((X_center,X_left,X_right))
     # Y_train = np.hstack((Y_center,Y_left,Y_right))
 
-    print("X_train ",len(X_train))
-    print("Y_train ",len(Y_train))
+    # print("X_train ",len(X_train))
+    # print("Y_train ",len(Y_train))
 
     batchSize = 80
     timesteps = 10
@@ -363,7 +363,13 @@ if __name__ == "__main__":
 
 
     # model.fit(X_train, Y_train,batch_size=batch_size,nb_epoch=nb_epoch,validation_data=(X_validation, Y_validation),shuffle=True)
-    model.fit_generator(batchImageGenerator(X_train,Y_train,batchSize=80,timesteps = 10 ),samples_per_epoch = 5000, nb_epoch=1)
+    # model.fit_generator(batchImageGenerator(X_left,Y_left,batchSize=80,timesteps = 10 ),samples_per_epoch = 7000, nb_epoch=1)
+    # model.reset_states()
+    model.fit_generator(batchImageGenerator(X_center, Y_center, batchSize=80, timesteps=10), samples_per_epoch=10000,nb_epoch=1)
+    model.reset_states()
+    # model.fit_generator(batchImageGenerator(X_right, Y_right, batchSize=80, timesteps=10), samples_per_epoch=7000,nb_epoch=1)
+    # model.reset_states()
+
     model.save_weights('model.h5')
     with open('model.json', 'w') as outfile:
         outfile.write(model.to_json())
