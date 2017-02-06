@@ -365,8 +365,9 @@ if __name__ == "__main__":
     # model.fit(X_train, Y_train,batch_size=batch_size,nb_epoch=nb_epoch,validation_data=(X_validation, Y_validation),shuffle=True)
     # model.fit_generator(batchImageGenerator(X_left,Y_left,batchSize=80,timesteps = 10 ),samples_per_epoch = 7000, nb_epoch=1)
     # model.reset_states()
+    # for i in range(2):
     model.fit_generator(batchImageGenerator(X_center, Y_center, batchSize=80, timesteps=10), samples_per_epoch=10000,nb_epoch=1)
-    model.reset_states()
+    # model.reset_states()
     # model.fit_generator(batchImageGenerator(X_right, Y_right, batchSize=80, timesteps=10), samples_per_epoch=7000,nb_epoch=1)
     # model.reset_states()
 
