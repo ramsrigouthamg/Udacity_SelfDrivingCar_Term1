@@ -26,15 +26,15 @@ app = Flask(__name__)
 model = None
 prev_image_array = None
 
+timesteps = 10
+volumesPerBatch = 8
+firstFrame = True
+transformed_image_array = np.zeros((volumesPerBatch, timesteps, 3, 66, 200), dtype="uint8")
 
 def crop_Image(image):
     height, width = image.shape[:2]
-    # print (height,width)
-    #Remove a region from top and bottom of the image to remove sky and hood
     upper_limit = int((6.0/7.0)*height)
     lower_limit = int((2.0 / 7.0) * height)
-    # upper_limit = int((7.0/8.0)*height)
-    # lower_limit = int((2.0 / 8.0) * height)
     return image[lower_limit:upper_limit,:]
 
 def preProcess(image):
@@ -44,6 +44,10 @@ def preProcess(image):
 
 @sio.on('telemetry')
 def telemetry(sid, data):
+    global firstFrame
+    global transformed_image_array
+    global timesteps
+    global volumesPerBatch
     # The current steering angle of the car
     steering_angle = data["steering_angle"]
     # The current throttle of the car
@@ -57,29 +61,37 @@ def telemetry(sid, data):
 
     b,g,r = cv2.split(image_array)           # get b, g, r
     image_array = cv2.merge([r,g,b])
+    image_array = preProcess(image_array)
 
     # cv2.imshow('image_orig', image_array)
     # cv2.waitKey(0)
     # cv2.destroyAllWindows()
-    # print ("Entered Here... Initial shape of image captured")
-    # print (image_array.shape)
-    image_array = preProcess(image_array)
+
     image_interChangedDimensions = np.transpose(image_array, (2, 0, 1))
-    timesteps = 10
-    volumesPerBatch = 8
-    transformed_image_array = np.zeros((volumesPerBatch, timesteps, 3, 66, 200), dtype="uint8")
-    # print ("Entered Here... Final shape of image captured")
-    # print (image_array.shape)
-    for j in range(volumesPerBatch):
-        for k in range(timesteps):
-            transformed_image_array[j, k, :, :, :]=image_interChangedDimensions
-    # transformed_image_array = image_array[None, :, :, :]
-    # This model currently assumes that the features of the model are just the images. Feel free to change this.
+
+    if firstFrame:
+        print ("First Frame")
+        #Copy the first frame to all the timesteps and volumes.
+        for j in range(volumesPerBatch):
+            for k in range(timesteps):
+                transformed_image_array[j, k, :, :, :] = image_interChangedDimensions
+    else:
+        for j in range(volumesPerBatch):
+            for k in range(timesteps):
+                #Replace last frame with current frame
+                if (j== (volumesPerBatch-1) and k ==(timesteps-1)):
+                    transformed_image_array[j, k, :, :, :] = image_interChangedDimensions
+                elif k != (timesteps-1):
+                    transformed_image_array[j, k, :, :, :] = transformed_image_array[j, k+1, :, :, :]
+                else:
+                    transformed_image_array[j, k, :, :, :] = transformed_image_array[j+1, 0 , :, :, :]
+
+
     print ("transformed_image_array ", transformed_image_array.shape)
     print ("Predicting steering angle ....")
     steering_angle = model.predict(transformed_image_array)
     print ("steering_angle_shape",steering_angle.shape)
-    steering_angle = steering_angle[0,0,0]
+    steering_angle = steering_angle[volumesPerBatch-1,timesteps-1,0]
     # print("steering_angle estimated", steering_angle)
     # The driving model currently just outputs a constant throttle. Feel free to edit this.
     throttle = 0.20

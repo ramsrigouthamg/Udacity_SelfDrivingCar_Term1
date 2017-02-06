@@ -70,5 +70,5 @@ if __name__ == "__main__":
     model.load_weights(weights_file)
 
     steering_angle = model.predict(transformed_image_array,batch_size=volumesPerBatch)
-    print ("steering_angle_shape",steering_angle.shape)
+    print ("steering_angle_shape",steering_angle[volumesPerBatch-1,timesteps-1,0])
 
