@@ -136,43 +136,158 @@ def buildModel(volumesPerBatch, timesteps, cameraFormat=(3, 66, 200)):
   return model
 
 
-def test_model(volumesPerBatch, timesteps, cameraFormat=(3, 66, 200)):
-    Izda = Sequential()
-    Izda.add(TimeDistributed(Convolution2D(40, 3, 3, border_mode='same'), input_shape=(timesteps, 3, 66, 200)))
-    Izda.add(Activation('relu'))
-    Izda.add(TimeDistributed(MaxPooling2D(pool_size=(2, 2))))
-    Izda.add(Dropout(0.2))
-
-    Dcha = Sequential()
-    Dcha.add(TimeDistributed(Convolution2D(40, 3, 3, border_mode='same'), input_shape=(timesteps, 3, 66, 200)))
-    Dcha.add(Activation('relu'))
-    Dcha.add(TimeDistributed(MaxPooling2D(pool_size=(2, 2))))
-    Dcha.add(Dropout(0.2))
-
-    Frt = Sequential()
-    Frt.add(TimeDistributed(Convolution2D(40, 3, 3, border_mode='same'), input_shape=(timesteps, 3, 66, 200)))
-    Frt.add(Activation('relu'))
-    Frt.add(TimeDistributed(MaxPooling2D(pool_size=(2, 2))))
-    Frt.add(Dropout(0.2))
-    # print (Frt.output_shape)
-
-    merged = Merge([Izda, Dcha, Frt], mode='concat', concat_axis=2)
-    # print(merged.output_shape)
-    # Output from merge is (batch_size, sequence_length, 120, 4, 5)
-    # We want to get this down to (batch_size, sequence_length, 120*4*5)
+def buildModelNew(volumesPerBatch, timesteps, cameraFormat=( 66, 200,3)):
+    """
+      Build and return a CNN + LSTM model; details in the comments.
+      The model expects batch_input_shape =
+      (volumes per batch, timesteps per volume, (camera format 3-tuple))
+      A "volume" is a video frame data struct extended in the time dimension.
+      Args:
+        volumesPerBatch: (int) batch size / timesteps
+        timesteps: (int) Number of timesteps per volume.
+        cameraFormat: (3-tuple) Ints to specify the input dimensions (color
+            channels, height, width).
+        verbosity: (int) Print model config.
+      Returns:
+        A compiled Keras model.
+      """
+    print("Building model...")
+    row, col, ch = cameraFormat
 
     model = Sequential()
-    model.add(merged)
-    print("Before Flatten ", model.output_shape)
+
+    if timesteps == 1:
+        raise ValueError("Not supported w/ TimeDistributed layers")
+
+    # Use a lambda layer to normalize the input data
+    # It's necessary to specify batch_input_shape in the first layer in order to
+    # have stateful recurrent layers later
+    model.add(Lambda(
+        lambda x: x / 127.5 - 1.,
+        batch_input_shape=(volumesPerBatch, timesteps, row, col,ch),
+    )
+    )
+
+    # For CNN layers, weights are initialized with Gaussian scaled by fan-in and
+    # activation is via ReLU units; this is current best practice (He et al., 2014)
+
+    # Several convolutional layers, each followed by ELU activation
+    # 8x8 convolution (kernel) with 4x4 stride over 16 output filters
+    print("Model shape initial ", model.output_shape)
+    model.add(TimeDistributed(
+        Convolution2D(24, 5, 5, subsample=(2, 2), border_mode="same", init="he_normal")))
+    model.add(ELU())
+
+    # 5x5 convolution (kernel) with 2x2 stride over 32 output filters
+    model.add(TimeDistributed(
+        Convolution2D(36, 5, 5, subsample=(2, 2), border_mode="valid", init="he_normal")))
+    model.add(ELU())
+
+    # 5x5 convolution (kernel) with 2x2 stride over 64 output filters
+    model.add(TimeDistributed(
+        Convolution2D(48, 5, 5, subsample=(2, 2), border_mode="valid", init="he_normal")))
+    model.add(ELU())
+
+    model.add(TimeDistributed(
+        Convolution2D(64, 3, 3, subsample=(1, 1), border_mode="valid", init="he_normal")))
+    model.add(ELU())
+
+    model.add(TimeDistributed(
+        Convolution2D(64, 3, 3, subsample=(1, 1), border_mode="valid", init="he_normal")))
+    model.add(ELU())
+
+    # TODO: Add a max pooling layer?
+
+    # Flatten the input to the next layer; output shape = (None, 76800)
     model.add(TimeDistributed(Flatten()))
-    print("After Flatten ", model.output_shape)
-    model.add(LSTM(240, return_sequences=True))
+    # Apply dropout to reduce overfitting
+    # model.add(Dropout(.2))
+    # model.add(Activation("relu"))
+    # model.add(TimeDistributed(Dense(1164, init='he_normal')))
+    model.add(Dropout(.4))
+    # model.add(ELU())
+    # Fully connected layer
+    # model.add(TimeDistributed(Dense(512)))
+    # # More dropout
+    # model.add(Dropout(.2))
+    # model.add(Activation("relu"))
 
+    # Add stacked (stateful) LSTM layers
+    model.add(LSTM(512,
+                   return_sequences=True,
+                   batch_input_shape=(volumesPerBatch, timesteps, 2304),
+                   stateful=False))
+    # model.add(LSTM(512,stateful=True))
+    model.add(LSTM(512,
+                   return_sequences=True,
+                   stateful=False))
+    # Fully connected layer with one output dimension (representing the predicted
+    # value).
     model.add(TimeDistributed(Dense(1)))
-    model.compile(loss='mse', optimizer='adam')
 
+    print("Y output shape ", model.output_shape)
+
+    # Adam optimizer is a standard, efficient SGD optimization method
+    # Loss function is mean squared error, standard for regression problems
+    model.compile(optimizer="adam", loss="mse")
     return model
 
+
+def return_model():
+    model = Sequential()
+    model.add(Lambda(lambda x: x/127.5 - 1.0, input_shape=(66, 200, 3)))
+
+    # layer 1
+    model.add(Convolution2D(24, 5, 5, subsample=(2, 2), border_mode="same", init = 'he_normal'))
+    model.add(ELU())
+
+    # layer 2
+    model.add(Convolution2D(36, 5, 5, subsample=(2, 2), border_mode="valid",init = 'he_normal'))
+    model.add(ELU())
+    # model.add(Dropout(.4))
+    # model.add(MaxPooling2D((2, 2), border_mode='valid'))
+
+    # layer 3
+    model.add(Convolution2D(48, 5, 5, subsample=(2, 2), border_mode="valid",init = 'he_normal'))
+    model.add(ELU())
+
+    # layer 4
+    model.add(Convolution2D(64, 3, 3, subsample=(1, 1), border_mode="valid",init = 'he_normal'))
+    model.add(ELU())
+    # model.add(Dropout(.4))
+
+    # layer 5
+    model.add(Convolution2D(64, 3, 3, subsample=(1, 1), border_mode="valid",init = 'he_normal'))
+    model.add(ELU())
+
+    # Flatten the output
+    model.add(Flatten())
+
+    # layer 4
+    model.add(Dense(1164,init = 'he_normal'))
+    model.add(Dropout(.4))
+    model.add(ELU())
+
+    # layer 5
+    model.add(Dense(100,init = 'he_normal'))
+    model.add(Dropout(.2))
+    model.add(ELU())
+
+    # layer 6
+    model.add(Dense(50,init = 'he_normal'))
+    model.add(ELU())
+
+    # layer 7
+    model.add(Dense(10,init = 'he_normal'))
+    model.add(ELU())
+
+    # Finally a single output, since this is a regression problem
+    model.add(Dense(1,init = 'he_normal'))
+
+    adam = Adam(lr=0.0001)
+    model.compile(optimizer=adam, loss="mse")
+
+    return model
 
 def old_model():
     model = Sequential()
@@ -285,15 +400,15 @@ def create_shadows(image):
 def preProcess(image,steeringAngle,flipImage = False):
     image = crop_Image(image)
     image= cv2.resize(image, (200, 66))
-    # changeBrightness = np.random.choice([True,False])
+    changeBrightness = np.random.choice([True,False])
     # createShadows = np.random.choice([True,False])
-    # if changeBrightness:
-    #     image = change_brightness(image)
+    if changeBrightness:
+        image = change_brightness(image)
     # elif createShadows:
     #     image = create_shadows(image)
-    # if flipImage:
-    #     image = cv2.flip(image,1)
-    #     steeringAngle = -1.0 * steeringAngle
+    if flipImage:
+        image = cv2.flip(image,1)
+        steeringAngle = -1.0 * steeringAngle
 
     return image,steeringAngle
 
@@ -306,10 +421,12 @@ def batchImageGenerator(X_train,Y_train, batchSize,timesteps):
             raise ValueError("Batch size should be divisible by timesteps so we get an equal number of frames in each portion of the batch.")
         volumesPerBatch = int(batchSize/timesteps)
         # If batchsize makes the current iteration to cross the max length of input array, reset counter.
+        print("current_processing image : ",index+batchSize)
         if((index+batchSize) >= len(Y_train)):
             index = 0
-        X_trainBatchImages =  np.zeros((volumesPerBatch, timesteps, 3, 66, 200), dtype="uint8")
+        X_trainBatchImages =  np.zeros((volumesPerBatch, timesteps, 66, 200,3), dtype="uint8")
         Y_trainBatchImages = np.zeros((volumesPerBatch, timesteps, 1), dtype="float32")
+
 
 
         for j in range(volumesPerBatch):
@@ -323,8 +440,8 @@ def batchImageGenerator(X_train,Y_train, batchSize,timesteps):
                 # cv2.destroyAllWindows()
                 index = index + 1
                 # Make image from 66,200,3 to 3,66,200
-                image_interChangedDimensions = np.transpose(image,(2,0,1))
-                X_trainBatchImages[j,k,:,:,:] = image_interChangedDimensions
+                # image_interChangedDimensions = np.transpose(image,(2,0,1))
+                X_trainBatchImages[j,k,:,:,:] = image
                 Y_trainBatchImages[j,k,:] = steeringAngle
 
         X_trainBatchImages=np.array(X_trainBatchImages)
@@ -332,6 +449,52 @@ def batchImageGenerator(X_train,Y_train, batchSize,timesteps):
 
 
         yield (X_trainBatchImages,Y_trainBatchImages)
+
+
+def batchImageGeneratorRandom(X_center,Y_center,X_left,Y_left,X_right,Y_right, batchSize ,timesteps):
+
+    while True:
+        if batchSize%timesteps:
+            raise ValueError("Batch size should be divisible by timesteps so we get an equal number of frames in each portion of the batch.")
+        volumesPerBatch = int(batchSize/timesteps)
+
+        X_trainBatchImages = np.zeros((volumesPerBatch, timesteps, 66, 200, 3), dtype="uint8")
+        Y_trainBatchImages = np.zeros((volumesPerBatch, timesteps, 1), dtype="float32")
+
+
+        index = np.random.randint(0,len(Y_center)-(batchSize+10))
+        imageBatch = np.random.choice(['left','center','right'])
+
+        if imageBatch == 'left':
+            X_train = X_left
+            Y_train = Y_left
+        elif imageBatch == 'right':
+            X_train = X_right
+            Y_train = Y_right
+        else:
+            X_train = X_center
+            Y_train = Y_center
+
+        flipImageChoice = np.random.choice([True, False])
+
+        for j in range(volumesPerBatch):
+            for k in range(timesteps):
+                steeringAngleInitial = Y_train[index]
+                imPath = X_train[index]
+                image = cv2.imread(imPath)
+                if "left" in imPath or 'right' in imPath:
+                    image, steeringAngle = preProcess(image, steeringAngleInitial, flipImage=flipImageChoice)
+                else:
+                    image, steeringAngle = preProcess(image, steeringAngleInitial)
+                index = index + 1
+                X_trainBatchImages[j,k,:,:,:] = image
+                Y_trainBatchImages[j,k,:] = steeringAngle
+
+        X_trainBatchImages=np.array(X_trainBatchImages)
+        Y_trainBatchImages=np.array(Y_trainBatchImages)
+
+        yield (X_trainBatchImages,Y_trainBatchImages)
+
 
 
 if __name__ == "__main__":
@@ -359,14 +522,17 @@ if __name__ == "__main__":
     volumesPerBatch = int(batchSize/timesteps)
 
     # X,Y = batchImageGenerator(X_train,Y_train,batchSize,timesteps)
-    model = buildModel(volumesPerBatch,timesteps,(3,66, 200))
+
+    # model_1 = return_model()
+    model = buildModelNew(volumesPerBatch,timesteps,(66, 200,3))
 
 
     # model.fit(X_train, Y_train,batch_size=batch_size,nb_epoch=nb_epoch,validation_data=(X_validation, Y_validation),shuffle=True)
     # model.fit_generator(batchImageGenerator(X_left,Y_left,batchSize=80,timesteps = 10 ),samples_per_epoch = 7000, nb_epoch=1)
     # model.reset_states()
     # for i in range(2):
-    model.fit_generator(batchImageGenerator(X_center, Y_center, batchSize=80, timesteps=10), samples_per_epoch=10000,nb_epoch=1)
+    No_samples_per_epoch = int(len(X_center)/10)-1 # About 800
+    model.fit_generator(batchImageGeneratorRandom(X_center,Y_center,X_left,Y_left,X_right,Y_right, batchSize=80, timesteps=10), samples_per_epoch=No_samples_per_epoch*10,nb_epoch=2)
     # model.reset_states()
     # model.fit_generator(batchImageGenerator(X_right, Y_right, batchSize=80, timesteps=10), samples_per_epoch=7000,nb_epoch=1)
     # model.reset_states()

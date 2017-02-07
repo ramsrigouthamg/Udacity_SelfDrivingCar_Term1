@@ -29,7 +29,7 @@ prev_image_array = None
 timesteps = 10
 volumesPerBatch = 8
 firstFrame = True
-transformed_image_array = np.zeros((volumesPerBatch, timesteps, 3, 66, 200), dtype="uint8")
+transformed_image_array = np.zeros((volumesPerBatch, timesteps, 66, 200,3), dtype="uint8")
 
 def crop_Image(image):
     height, width = image.shape[:2]
@@ -67,26 +67,25 @@ def telemetry(sid, data):
     # cv2.waitKey(0)
     # cv2.destroyAllWindows()
 
-    image_interChangedDimensions = np.transpose(image_array, (2, 0, 1))
+    # image_interChangedDimensions = np.transpose(image_array, (2, 0, 1))
 
     if firstFrame:
         print ("First Frame")
         #Copy the first frame to all the timesteps and volumes.
         for j in range(volumesPerBatch):
             for k in range(timesteps):
-                transformed_image_array[j, k, :, :, :] = image_interChangedDimensions
+                transformed_image_array[j, k, :, :, :] = image_array
         firstFrame = False
     else:
         for j in range(volumesPerBatch):
             for k in range(timesteps):
                 #Replace last frame with current frame
                 if (j== (volumesPerBatch-1) and k ==(timesteps-1)):
-                    transformed_image_array[j, k, :, :, :] = image_interChangedDimensions
+                    transformed_image_array[j, k, :, :, :] = image_array
                 elif k != (timesteps-1):
                     transformed_image_array[j, k, :, :, :] = transformed_image_array[j, k+1, :, :, :]
                 else:
                     transformed_image_array[j, k, :, :, :] = transformed_image_array[j+1, 0 , :, :, :]
-
 
     # print ("transformed_image_array ", transformed_image_array.shape)
     # print ("Predicting steering angle ....")
