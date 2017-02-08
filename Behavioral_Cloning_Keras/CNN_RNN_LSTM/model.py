@@ -532,7 +532,7 @@ if __name__ == "__main__":
     # model.reset_states()
     # for i in range(2):
     No_samples_per_epoch = int(len(X_center)/10)-1 # About 800
-    model.fit_generator(batchImageGeneratorRandom(X_center,Y_center,X_left,Y_left,X_right,Y_right, batchSize=80, timesteps=10), samples_per_epoch=No_samples_per_epoch*10,nb_epoch=2)
+    model.fit_generator(batchImageGeneratorRandom(X_center,Y_center,X_left,Y_left,X_right,Y_right, batchSize=80, timesteps=10), samples_per_epoch=No_samples_per_epoch,nb_epoch=30)
     # model.reset_states()
     # model.fit_generator(batchImageGenerator(X_right, Y_right, batchSize=80, timesteps=10), samples_per_epoch=7000,nb_epoch=1)
     # model.reset_states()
