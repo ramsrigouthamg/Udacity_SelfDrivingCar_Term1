@@ -12,7 +12,8 @@ from keras.optimizers import Adam
 import cv2
 
 # Always generate fixed random numbers.
-np.random.seed(2016)
+initial_seed = 2016
+np.random.seed(initial_seed)
 
 #  The model that is used to train the CNN.
 # Implemented the Nvidia architecture
@@ -207,7 +208,7 @@ if __name__ == "__main__":
     X_train = np.hstack((X_center,X_left,X_right))
     Y_train = np.hstack((Y_center,Y_left,Y_right))
 
-    X_train, X_validation, Y_train, Y_validation = train_test_split(X_train, Y_train, test_size=0.10)
+    X_train, X_validation, Y_train, Y_validation = train_test_split(X_train, Y_train, test_size=0.10,random_state=initial_seed)
 
     print("Y_train ",len(Y_train))
     print("Y_validation ",len(Y_validation))
@@ -233,7 +234,7 @@ if __name__ == "__main__":
     validation_loss = 10000.0
     Best_epoch = -1
     Best_validation_loss = 10000.0
-    No_of_epochs = 25
+    No_of_epochs = 16
     for i in range(No_of_epochs):
         hist = model.fit_generator(generator = batchImageGenerator(X_train,Y_train,batchSize=256),samples_per_epoch = 128*200, nb_epoch=1 , validation_data=batchImageGenerator_ValidationData(X_validation,Y_validation,batchSize=2048),nb_val_samples = 2048)
         print ("Validation_Loss: " ,hist.history['val_loss'], "epoch: ",i)
