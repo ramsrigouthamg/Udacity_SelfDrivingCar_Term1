@@ -127,7 +127,6 @@ def preProcess(image,steeringAngle,flipImage = False):
 
 # Generator that generates a random batch of images by applying random preprocessing to images.
 def batchImageGenerator(X_train,Y_train, batchSize = 64):
-
     while True:
         X_trainBatchImages = []
         Y_trainBatchImages = []
@@ -162,25 +161,23 @@ def batchImageGenerator(X_train,Y_train, batchSize = 64):
         yield (X_trainBatchImages,Y_trainBatchImages)
 
 
-def batchImageGenerator_ValidationData(X_train,Y_train, batchSize = 64):
-
+def batchImageGenerator_ValidationData_sequential(X_train,Y_train, batchSize = 64):
+    index = 0
     while True:
+        if batchSize > len(Y_train):
+            raise ValueError("Batch size should be less than the size of input data.")
+        if ((index + batchSize) >= len(Y_train)):
+            index = 0
         X_trainBatchImages = []
         Y_trainBatchImages = []
 
         for i in range(batchSize):
-            index = np.random.randint(0,len(Y_train)-1)
             imPath = X_train[index]
             image=cv2.imread(imPath)
-            steeringAngleInitial = Y_train[index]
-            # image = crop_Image(image)
-            # image = cv2.resize(image, (200, 66))
-            # steeringAngle = steeringAngleInitial
-            if "left" in imPath or 'right' in imPath:
-                flipImageChoice = np.random.choice([True, False])
-                image, steeringAngle = preProcess(image, steeringAngleInitial,flipImage=flipImageChoice)
-            else:
-                image,steeringAngle = preProcess(image,steeringAngleInitial)
+            steeringAngle = Y_train[index]
+            image = crop_Image(image)
+            image = cv2.resize(image, (200, 66))
+            index = index + 1
             X_trainBatchImages.append(image)
             Y_trainBatchImages.append(steeringAngle)
 
@@ -188,6 +185,26 @@ def batchImageGenerator_ValidationData(X_train,Y_train, batchSize = 64):
         Y_trainBatchImages=np.array(Y_trainBatchImages)
 
         yield (X_trainBatchImages,Y_trainBatchImages)
+
+def batch_validation_fixed(X_train,Y_train,batchSize):
+    batchSize = len(Y_train)
+    X_trainBatchImages = []
+    Y_trainBatchImages = []
+    for i in range(batchSize):
+        imPath = X_train[i]
+        image = cv2.imread(imPath)
+        steeringAngle = Y_train[i]
+        image = crop_Image(image)
+        image = cv2.resize(image, (200, 66))
+        X_trainBatchImages.append(image)
+        Y_trainBatchImages.append(steeringAngle)
+
+    X_trainBatchImages = np.array(X_trainBatchImages)
+    Y_trainBatchImages = np.array(Y_trainBatchImages)
+
+    return (X_trainBatchImages,Y_trainBatchImages)
+
+
 
 
 if __name__ == "__main__":
@@ -234,11 +251,15 @@ if __name__ == "__main__":
     validation_loss = 10000.0
     Best_epoch = -1
     Best_validation_loss = 10000.0
-    No_of_epochs = 16
+    No_of_epochs = 2
+    x_data_validation , y_data_validation = batch_validation_fixed(X_validation,Y_validation,len(Y_validation))
+
     for i in range(No_of_epochs):
-        hist = model.fit_generator(generator = batchImageGenerator(X_train,Y_train,batchSize=256),samples_per_epoch = 128*200, nb_epoch=1 , validation_data=batchImageGenerator_ValidationData(X_validation,Y_validation,batchSize=2048),nb_val_samples = 2048)
-        print ("Validation_Loss: " ,hist.history['val_loss'], "epoch: ",i)
-        current_epoch_loss = float(hist.history['val_loss'][0])
+        np.random.seed(initial_seed)
+        hist = model.fit_generator(generator = batchImageGenerator(X_train,Y_train,batchSize=256),samples_per_epoch = 128*20, nb_epoch=1 , validation_data=batchImageGenerator_ValidationData_sequential(X_validation,Y_validation,batchSize=2400),nb_val_samples = 2400)
+        # print ("Validation_Loss: " ,hist.history['val_loss'], "epoch: ",i)
+        current_epoch_loss = model.evaluate(x_data_validation,y_data_validation,batch_size=len(Y_validation))
+        # current_epoch_loss = float(hist.history['val_loss'][0])
         if current_epoch_loss < validation_loss:
             print("Saving model with Validation_Loss: ", current_epoch_loss, " at epoch: ", i)
             Best_epoch = i
