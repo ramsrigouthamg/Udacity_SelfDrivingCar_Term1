@@ -158,6 +158,7 @@ def batchImageGenerator(X_train,Y_train, batchSize = 64):
         X_trainBatchImages=np.array(X_trainBatchImages)
         Y_trainBatchImages=np.array(Y_trainBatchImages)
 
+        # print(Y_trainBatchImages)
         yield (X_trainBatchImages,Y_trainBatchImages)
 
 
@@ -251,15 +252,19 @@ if __name__ == "__main__":
     validation_loss = 10000.0
     Best_epoch = -1
     Best_validation_loss = 10000.0
-    No_of_epochs = 2
-    x_data_validation , y_data_validation = batch_validation_fixed(X_validation,Y_validation,len(Y_validation))
+    No_of_epochs = 12
+    # x_data_validation , y_data_validation = batch_validation_fixed(X_validation,Y_validation,len(Y_validation))
 
     for i in range(No_of_epochs):
-        np.random.seed(initial_seed)
-        hist = model.fit_generator(generator = batchImageGenerator(X_train,Y_train,batchSize=256),samples_per_epoch = 128*20, nb_epoch=1 , validation_data=batchImageGenerator_ValidationData_sequential(X_validation,Y_validation,batchSize=2400),nb_val_samples = 2400)
-        # print ("Validation_Loss: " ,hist.history['val_loss'], "epoch: ",i)
-        current_epoch_loss = model.evaluate(x_data_validation,y_data_validation,batch_size=len(Y_validation))
-        # current_epoch_loss = float(hist.history['val_loss'][0])
+        # np.random.seed(initial_seed+i)
+        hist = model.fit_generator(generator = batchImageGenerator(X_train,Y_train,batchSize=256),samples_per_epoch = 128*200, nb_epoch=1 , validation_data=batchImageGenerator_ValidationData_sequential(X_validation,Y_validation,batchSize=2400),nb_val_samples = 2400)
+        print ("Validation_Loss: " ,hist.history['val_loss'], "epoch: ",i)
+        # hist = model.fit_generator(generator=batchImageGenerator(X_train, Y_train, batchSize=10),samples_per_epoch=10, nb_epoch=1)
+        # From the way loss is calculated it is understood that it is non deterministic in the background
+        # So we cannot produce reproducible results with tensorflow backend.
+        # print("Loss: ", hist.history['loss'], "epoch: ", i)
+        # current_epoch_loss = model.evaluate(x_data_validation,y_data_validation,batch_size=len(Y_validation))
+        current_epoch_loss = float(hist.history['val_loss'][0])
         if current_epoch_loss < validation_loss:
             print("Saving model with Validation_Loss: ", current_epoch_loss, " at epoch: ", i)
             Best_epoch = i
