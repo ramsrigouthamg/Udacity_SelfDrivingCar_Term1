@@ -138,7 +138,7 @@ def batchImageGenerator(X_train,Y_train, batchSize = 64):
                 imPath = X_train[index]
                 image=cv2.imread(imPath)
                 steeringAngleInitial = Y_train[index]
-                if abs(steeringAngleInitial) < 0.3:
+                if abs(steeringAngleInitial) < 0.5:
                     retryProbability = np.random.sample()
                     if retryProbability > 0.6:
                         retry = False
@@ -252,7 +252,7 @@ if __name__ == "__main__":
     validation_loss = 10000.0
     Best_epoch = -1
     Best_validation_loss = 10000.0
-    No_of_epochs = 12
+    No_of_epochs = 17
     # x_data_validation , y_data_validation = batch_validation_fixed(X_validation,Y_validation,len(Y_validation))
 
     for i in range(No_of_epochs):
