@@ -219,8 +219,8 @@ if __name__ == "__main__":
 
     Y_center = reader["steering"]
     # Add an offset for the left and right steering angles
-    Y_left = reader["steering"]+0.25
-    Y_right = reader["steering"]-0.25
+    Y_left = reader["steering"]+0.3
+    Y_right = reader["steering"]-0.3
 
     #  Combine left, center and right image paths
     X_train = np.hstack((X_center,X_left,X_right))
@@ -252,7 +252,7 @@ if __name__ == "__main__":
     validation_loss = 10000.0
     Best_epoch = -1
     Best_validation_loss = 10000.0
-    No_of_epochs = 12
+    No_of_epochs = 14
     # x_data_validation , y_data_validation = batch_validation_fixed(X_validation,Y_validation,len(Y_validation))
 
     for i in range(No_of_epochs):
