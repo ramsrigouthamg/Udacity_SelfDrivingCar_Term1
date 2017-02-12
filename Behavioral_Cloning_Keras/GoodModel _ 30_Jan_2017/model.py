@@ -98,8 +98,8 @@ def create_shadows(image):
 def crop_Image(image):
     height, width = image.shape[:2]
     #Remove a region from top and bottom of the image to remove sky and hood
-    upper_limit = int((6.0/7.0)*height)
-    lower_limit = int((2.0 / 7.0) * height)
+    lower_limit = int((3.0/10.0) * height)
+    upper_limit = int((8.5/10.0)*height)
     return image[lower_limit:upper_limit,:]
 
 # Change brightness of an image multiplying with a random value in HSV space.
@@ -252,7 +252,7 @@ if __name__ == "__main__":
     validation_loss = 10000.0
     Best_epoch = -1
     Best_validation_loss = 10000.0
-    No_of_epochs = 14
+    No_of_epochs = 12
     # x_data_validation , y_data_validation = batch_validation_fixed(X_validation,Y_validation,len(Y_validation))
 
     for i in range(No_of_epochs):
