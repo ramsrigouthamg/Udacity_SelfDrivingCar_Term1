@@ -29,12 +29,9 @@ prev_image_array = None
 
 def crop_Image(image):
     height, width = image.shape[:2]
-    # print (height,width)
     #Remove a region from top and bottom of the image to remove sky and hood
-    upper_limit = int((6.0/7.0)*height)
-    lower_limit = int((2.0 / 7.0) * height)
-    # upper_limit = int((7.0/8.0)*height)
-    # lower_limit = int((2.0 / 8.0) * height)
+    lower_limit = int((3.0/10.0) * height)
+    upper_limit = int((8.5/10.0)*height)
     return image[lower_limit:upper_limit,:]
 
 def preProcess(image):
