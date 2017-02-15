@@ -222,8 +222,8 @@ if __name__ == "__main__":
 
     Y_center = reader["steering"]
     # Add an offset for the left and right steering angles
-    Y_left = reader["steering"]+0.3
-    Y_right = reader["steering"]-0.3
+    Y_left = reader["steering"]+0.325
+    Y_right = reader["steering"]-0.325
 
     #  Combine left, center and right image paths
     X_train = np.hstack((X_center,X_left,X_right))
