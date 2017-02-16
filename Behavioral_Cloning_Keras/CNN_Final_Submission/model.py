@@ -1,7 +1,5 @@
 
 # coding: utf-8
-
-
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
@@ -11,7 +9,7 @@ from sklearn.model_selection import train_test_split
 from keras.optimizers import Adam
 import cv2
 
-# Always generate fixed random numbers.
+# Always generate fixed random numbers so that results are reproducible.
 initial_seed = 2016
 np.random.seed(initial_seed)
 
@@ -44,21 +42,21 @@ def return_model():
     # Flatten the output
     model.add(Flatten())
 
-    # layer 4
+    # layer 6. Fully connected.
     model.add(Dense(1164,init = 'he_normal'))
     model.add(Dropout(.4))
     model.add(ELU())
 
-    # layer 5
+    # layer 7. Fully connected.
     model.add(Dense(100,init = 'he_normal'))
     model.add(Dropout(.2))
     model.add(ELU())
 
-    # layer 6
+    # layer 8. Fully connected.
     model.add(Dense(50,init = 'he_normal'))
     model.add(ELU())
 
-    # layer 7
+    # layer 9. Fully connected.
     model.add(Dense(10,init = 'he_normal'))
     model.add(ELU())
 
@@ -71,28 +69,6 @@ def return_model():
 
     return model
 
-def create_shadows(image):
-    nrows,ncols = image.shape[:2]
-    channel_count = image.shape[2]
-    # print(nrows,ncols,image.dtype)
-    mask = np.zeros(image.shape,dtype = np.uint8)
-    startShadowLeft = np.random.choice([True,False])
-    if startShadowLeft:
-        col = 0
-    else:
-        col = ncols
-    shadowColStarts = np.random.random_integers(5,ncols-5,2)
-    roi_corners = np.array([[(col, 0), (col,ncols), ( shadowColStarts[1],ncols),(shadowColStarts[0],0)]], dtype=np.int32)
-    OldRange = (1.0 - 0.0)
-    NewRange = (0.9 - 0.3)
-    OldValue = np.random.sample()
-    random_brightness_to_multiply = (((OldValue - 0) * NewRange) / OldRange) + 0.3
-    random_brightness_to_multiply = round(random_brightness_to_multiply,3)
-    ignore_mask_color = (255,) * channel_count
-    cv2.fillPoly(mask, roi_corners, ignore_mask_color)
-    coordinatesROI = mask==255
-    image[coordinatesROI] = image[coordinatesROI]*random_brightness_to_multiply
-    return image
 
 # Cropping function used to crop the hood of the car and part of the sky.
 def crop_Image(image):
@@ -117,11 +93,8 @@ def preProcess(image,steeringAngle,flipImage = False):
     image = crop_Image(image)
     image= cv2.resize(image, (200, 66))
     changeBrightness = np.random.choice([True,False])
-    # createShadow = np.random.choice([True,False])
     if changeBrightness:
         image = change_brightness(image)
-    # elif createShadow:
-    #     image = create_shadows(image)
     if flipImage:
         image = cv2.flip(image,1)
         steeringAngle = -1.0 * steeringAngle
@@ -141,6 +114,7 @@ def batchImageGenerator(X_train,Y_train, batchSize = 64):
                 imPath = X_train[index]
                 image=cv2.imread(imPath)
                 steeringAngleInitial = Y_train[index]
+                # Give more weight to training images with higher steering angles. Hence retry with a higher probability if lower steering angle image is picked.
                 if abs(steeringAngleInitial) < 0.2:
                     retryProbability = np.random.sample()
                     if retryProbability > 0.6:
@@ -149,7 +123,7 @@ def batchImageGenerator(X_train,Y_train, batchSize = 64):
                         retry = True
                 else:
                     retry = False
-
+            # Flip the image if it is from left or right camera angle.
             if "left" in imPath or 'right' in imPath:
                 flipImageChoice = np.random.choice([True, False])
                 image, steeringAngle = preProcess(image, steeringAngleInitial,flipImage=flipImageChoice)
@@ -161,10 +135,9 @@ def batchImageGenerator(X_train,Y_train, batchSize = 64):
         X_trainBatchImages=np.array(X_trainBatchImages)
         Y_trainBatchImages=np.array(Y_trainBatchImages)
 
-        # print(Y_trainBatchImages)
         yield (X_trainBatchImages,Y_trainBatchImages)
 
-
+# Generator that generates a fixed batch of images for validation.
 def batchImageGenerator_ValidationData_sequential(X_train,Y_train, batchSize = 64):
     index = 0
     while True:
@@ -190,26 +163,6 @@ def batchImageGenerator_ValidationData_sequential(X_train,Y_train, batchSize = 6
 
         yield (X_trainBatchImages,Y_trainBatchImages)
 
-def batch_validation_fixed(X_train,Y_train,batchSize):
-    batchSize = len(Y_train)
-    X_trainBatchImages = []
-    Y_trainBatchImages = []
-    for i in range(batchSize):
-        imPath = X_train[i]
-        image = cv2.imread(imPath)
-        steeringAngle = Y_train[i]
-        image = crop_Image(image)
-        image = cv2.resize(image, (200, 66))
-        X_trainBatchImages.append(image)
-        Y_trainBatchImages.append(steeringAngle)
-
-    X_trainBatchImages = np.array(X_trainBatchImages)
-    Y_trainBatchImages = np.array(Y_trainBatchImages)
-
-    return (X_trainBatchImages,Y_trainBatchImages)
-
-
-
 
 if __name__ == "__main__":
 
@@ -229,25 +182,11 @@ if __name__ == "__main__":
     X_train = np.hstack((X_center,X_left,X_right))
     Y_train = np.hstack((Y_center,Y_left,Y_right))
 
+    # Split data for training and validation.
     X_train, X_validation, Y_train, Y_validation = train_test_split(X_train, Y_train, test_size=0.10,random_state=initial_seed)
 
     print("Y_train ",len(Y_train))
     print("Y_validation ",len(Y_validation))
-
-    # plt.subplot(2, 1, 1)
-    # plt.hist(Y_train)
-    # plt.title('Steering angles')
-    # plt.ylabel('Y_train')
-    #
-    # plt.subplot(2, 1, 2)
-    # # plt.plot(Y_test, 'r.-')
-    # plt.hist(Y_validation)
-    # plt.xlabel('Samples')
-    # plt.ylabel('Y_validation')
-    #
-    # plt.show()
-
-
 
     model = return_model()
 
@@ -256,26 +195,18 @@ if __name__ == "__main__":
     Best_epoch = -1
     Best_validation_loss = 10000.0
     No_of_epochs = 18
-    # x_data_validation , y_data_validation = batch_validation_fixed(X_validation,Y_validation,len(Y_validation))
 
+    # Loop through a fixed number of epochs. Get validation error for each epoch.
+    # Store the model that has the least validation error among all the epochs.
     for i in range(No_of_epochs):
-        # np.random.seed(initial_seed+i)
         hist = model.fit_generator(generator = batchImageGenerator(X_train,Y_train,batchSize=256),samples_per_epoch = 128*200, nb_epoch=1 , validation_data=batchImageGenerator_ValidationData_sequential(X_validation,Y_validation,batchSize=2400),nb_val_samples = 2400)
         print ("Validation_Loss: " ,hist.history['val_loss'], "epoch: ",i)
-        # hist = model.fit_generator(generator=batchImageGenerator(X_train, Y_train, batchSize=10),samples_per_epoch=10, nb_epoch=1)
-        # From the way loss is calculated it is understood that it is non deterministic in the background
-        # So we cannot produce reproducible results with tensorflow backend.
-        # print("Loss: ", hist.history['loss'], "epoch: ", i)
-        # current_epoch_loss = model.evaluate(x_data_validation,y_data_validation,batch_size=len(Y_validation))
         current_epoch_loss = float(hist.history['val_loss'][0])
         if current_epoch_loss < validation_loss:
             print("Saving model with Validation_Loss: ", current_epoch_loss, " at epoch: ", i)
             Best_epoch = i
             Best_validation_loss = current_epoch_loss
             model.save('model.h5')
-            # model.save_weights('model.h5')
-            # with open('model.json', 'w') as outfile:
-            #     outfile.write(model.to_json())
             validation_loss = current_epoch_loss
 
     print (" Best Epoch : ",Best_epoch, "  Best Validation Loss",Best_validation_loss)
