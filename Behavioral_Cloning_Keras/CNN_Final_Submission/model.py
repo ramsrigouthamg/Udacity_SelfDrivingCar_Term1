@@ -10,7 +10,7 @@ from keras.optimizers import Adam
 import cv2
 
 # Always generate fixed random numbers so that results are reproducible.
-initial_seed = 0
+initial_seed = 2016
 np.random.seed(initial_seed)
 
 #  The model that is used to train the CNN.
@@ -19,8 +19,13 @@ def return_model():
     model = Sequential()
     model.add(Lambda(lambda x: x/127.5 - 1.0, input_shape=(66, 200, 3)))
 
+    #layer 0. A layer to find out the correct color space to operate in.
+    model.add(Convolution2D(3, 1, 1, subsample=(1, 1), border_mode="same", init='he_normal'))
+    model.add(ELU())
+
     # layer 1 
     model.add(Convolution2D(24, 5, 5, subsample=(2, 2), border_mode="same", init = 'he_normal'))
+    model.add(Dropout(.2))
     model.add(ELU())
 
     # layer 2 
@@ -58,6 +63,7 @@ def return_model():
 
     # layer 8. Fully connected.
     model.add(Dense(50,init = 'he_normal'))
+    model.add(Dropout(.2))
     model.add(ELU())
 
     # layer 9. Fully connected.
@@ -141,7 +147,7 @@ def preProcess(image,steeringAngle,flipImage = False):
     if flipImage:
         image = cv2.flip(image,1)
         steeringAngle = -1.0 * steeringAngle
-    if translateImage:
+    elif translateImage:
         image, steeringAngle = translate_image(image, steeringAngle)
 
     return image,steeringAngle
@@ -233,18 +239,31 @@ if __name__ == "__main__":
     print("Y_train ",len(Y_train))
     print("Y_validation ",len(Y_validation))
 
+    plt.subplot(2, 1, 1)
+    plt.hist(Y_train)
+    plt.title('Steering angles')
+    plt.ylabel('Y_train')
+
+    plt.subplot(2, 1, 2)
+    # plt.plot(Y_test, 'r.-')
+    plt.hist(Y_validation)
+    plt.xlabel('Samples')
+    plt.ylabel('Y_validation')
+
+    plt.show()
+
     model = return_model()
 
     #  Use fit generator to generate images in batches.
     validation_loss = 10000.0
     Best_epoch = -1
     Best_validation_loss = 10000.0
-    No_of_epochs = 20
+    No_of_epochs = 12
 
     # Loop through a fixed number of epochs. Get validation error for each epoch.
     # Store the model that has the least validation error among all the epochs.
     for i in range(No_of_epochs):
-        hist = model.fit_generator(generator = batchImageGenerator(X_train,Y_train,batchSize=256),samples_per_epoch = 128*100, nb_epoch=1 , validation_data=batchImageGenerator_ValidationData_sequential(X_validation,Y_validation,batchSize=2400),nb_val_samples = 2400)
+        hist = model.fit_generator(generator = batchImageGenerator(X_train,Y_train,batchSize=256),samples_per_epoch = 128*150, nb_epoch=1 , validation_data=batchImageGenerator_ValidationData_sequential(X_validation,Y_validation,batchSize=2400),nb_val_samples = 2400)
         print ("Validation_Loss: " ,hist.history['val_loss'], "epoch: ",i)
         current_epoch_loss = float(hist.history['val_loss'][0])
         if current_epoch_loss < validation_loss:
