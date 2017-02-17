@@ -31,8 +31,8 @@ prev_image_array = None
 def crop_Image(image):
     height, width = image.shape[:2]
     #Remove a region from top and bottom of the image to remove sky and hood
-    lower_limit = int((3.0/10.0) * height)
-    upper_limit = int((8.5/10.0)*height)
+    lower_limit = int((2.0/7.0) * height)
+    upper_limit = int((6.0/7.0)*height)
     return image[lower_limit:upper_limit,:]
 
 def preProcess(image):
@@ -64,7 +64,7 @@ def telemetry(sid, data):
         elif float(speed) > max_speed:
             throttle = -1.0
         else:
-            throttle = 0.20
+            throttle = 0.15
         
         print(steering_angle, throttle)
         send_control(steering_angle, throttle)
